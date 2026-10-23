@@ -11,6 +11,8 @@ export interface Config {
   stateRoot?: string
   connectorSourceDir?: string
   uvPath?: string
+  /** Ask Node for IPv4 addresses first; turn off on networks where IPv6 is the working path. */
+  preferIpv4?: boolean
 }
 
 export const Config: z<Config> = z.object({
@@ -19,6 +21,7 @@ export const Config: z<Config> = z.object({
   stateRoot: z.string(),
   connectorSourceDir: z.string(),
   uvPath: z.string(),
+  preferIpv4: z.boolean().default(true),
 })
 
 export interface ResolvedConfig extends ConnectionSettings {

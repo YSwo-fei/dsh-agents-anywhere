@@ -10,6 +10,7 @@
 | **无安装脚本** | 纯 JS + 内嵌 Python Connector 源码，首次连接设备时才准备 Python 环境，`npm`/`pnpm` 安装不会执行任何脚本 |
 | **独立包名** `dsh-plugin-agents-anywhere` | 与上游 `@agents-anywhere/dsh-bridge-next` 并存不冲突，便于对比和回退 |
 | **修复 manager 端口崩溃** | 上游在 manager 端口的监听上未处理 socket `error`，任何裸 TCP 连接（端口探测、健康检查）都会抛出未捕获 `ECONNRESET` 把整个 DSH 进程带崩 |
+| **IPv4 优先解析** | 开着 TUN/fake-ip 类代理时，这类 VPN 会给公网域名补一个不可达的 IPv6 地址；Node 默认 erbatim 顺序优先 IPv6，于是插件所有 HTTPS 请求都以 ECONNRESET 失败（curl、浏览器走 IPv4 却正常）；本版在 Host 启动时改为 ipv4first，没有 A 记录的主机仍回退 IPv6，可用 preferIpv4: false 关掉 |
 | **manager 锁被占用后可自愈** | 上游把首次 `load()` 的 Promise 缓存住，一旦本机状态目录被另一个 DSH 实例短暂占用（锁冲突），这个失败的 Promise 会被永久缓存，之后所有请求都只报错，必须重启 DSH 才能恢复；本版在失败后清空缓存，下一次请求重新尝试 |
 | **错误日志带原因** | 上游 `onboarding.stage` 只记录 `error`，不知道错在哪；本版同时记录 message，面板报错和 `logs/onboarding.jsonl` 能直接对照 |
 | **版本号/包名不再硬编码** | 上游多处写死 `@agents-anywhere/dsh-bridge-next/package.json`，改名后会读不到自身版本 |

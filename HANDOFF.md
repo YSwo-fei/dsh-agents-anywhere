@@ -47,3 +47,12 @@
 - 验证命令（全部通过）：`corepack yarn typecheck`、`yarn build`、`yarn check:build`、`yarn tsx --test tests/unit/manager-lock-recovery.test.ts`。全量 `yarn test` 仍有 Windows 环境性失败（symlink EPERM、`DSH_INTERACTION_RUNTIME_ROOT`、连接器集成测试需要 PostgreSQL），与本插件逻辑无关。
 - 本机真实启动验证：用 desktop profile 的克隆 profile 独立 boot 过一次，插件 manager 正常加载并写入状态目录；克隆 profile 与测试状态目录已删除。
 - 待办：重启 DSH 后在侧边栏扫码绑定设备做端到端连接验证；上传 GitHub 需要 `GITHUB_TOKEN`。
+
+## 2026-10-23 15:40（v2.1.6）连接失败根因：IPv6 fake-ip
+
+- 面板报「无法连接服务器，请检查地址和网络后重试」，logs/onboarding.jsonl 里对应一条 rror + 该 message（日志带 message 的改动生效）。
+- 根因：本机 DNS 对 web.agents-anywhere.com 同时返回 198.18.0.32（fake-ip，可用）与 2001:2::1f（不可达）。Node 默认 erbatim 顺序优先 IPv6 → etch 抛 TypeError: fetch failed (ECONNRESET)；curl 走 IPv4 正常（200，1.5s），Python connector 也会自动回退 IPv4（TLS 0.11s 成功）。
+- 修复：src/host/net/family.ts 的 preferIpv4()，在 src/host/index.ts 的 pply() 里调用 dns.setDefaultResultOrder('ipv4first')，配置项 preferIpv4（默认 true）可关。
+- 验证：
+ode -e "fetch(...)" 默认顺序 → ECONNRESET；equire('dns').setDefaultResultOrder('ipv4first') 后 → 200，386ms。新增 	ests/unit/resolver-family.test.ts。
+- 已装：dsh-plugin-agents-anywhere-2.1.6.tgz（desktop profile），**需重启 DSH 生效**。
