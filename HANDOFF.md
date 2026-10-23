@@ -56,3 +56,10 @@
 - 验证：
 ode -e "fetch(...)" 默认顺序 → ECONNRESET；equire('dns').setDefaultResultOrder('ipv4first') 后 → 200，386ms。新增 	ests/unit/resolver-family.test.ts。
 - 已装：dsh-plugin-agents-anywhere-2.1.6.tgz（desktop profile），**需重启 DSH 生效**。
+
+## 2026-10-23 16:07 —— 2.1.6 实测通过，仓库已上传
+
+- 2.1.6 修掉的两处：连接失败的真因是 Node 默认 verbatim 解析在 fake-ip VPN 上拿到不可路由的 IPv6（ECONNRESET）；apply() 现在默认 \setDefaultResultOrder('ipv4first')\，配置项 \preferIpv4: false\ 可关掉。另有 manager 锁死实例自愈、manager 端口 socket 未捕获异常导致 Host 崩溃两处修复。
+- 隔离实测（克隆 state 目录 + 克隆 profile，未动桌面实例）：idle → authorizing → pairing（登录成功）→ starting → \connector.control_connected\ → \connector.state_changed {"running":true}\，uv 自动检测到 PATH 上的 uv，venv 装 55 包后 connector 以 python 运行。测试残留已清理。
+- GitHub: https://github.com/YSwo-fei/dsh-agents-anywhere
+- 桌面实例仍是 2.1.5 进程（bundle 只在启动时加载），重启后生效。
