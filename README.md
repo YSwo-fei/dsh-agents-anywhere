@@ -28,7 +28,7 @@
 
 ```bash
 # 1) 取源码并构建
-git clone https://github.com/feiyuai/dsh-agents-anywhere.git
+git clone https://github.com/YSwo-fei/dsh-agents-anywhere.git
 cd dsh-agents-anywhere
 corepack yarn install
 corepack yarn build

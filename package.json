@@ -178,11 +178,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/feiyuai/dsh-agents-anywhere.git"
+    "url": "git+https://github.com/YSwo-fei/dsh-agents-anywhere.git"
   },
-  "homepage": "https://github.com/feiyuai/dsh-agents-anywhere#readme",
+  "homepage": "https://github.com/YSwo-fei/dsh-agents-anywhere#readme",
   "bugs": {
-    "url": "https://github.com/feiyuai/dsh-agents-anywhere/issues"
+    "url": "https://github.com/YSwo-fei/dsh-agents-anywhere/issues"
   },
   "keywords": [
     "deepseek-harness",
