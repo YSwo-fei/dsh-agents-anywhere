@@ -111,3 +111,11 @@ tests/           unit / integration
 
 MIT，见 [LICENSE](LICENSE)。上游版权归 Agents Anywhere 项目所有；本仓库保留其署名，仅做插件化封装与上述修复。
 
+
+## 多版本适配
+
+插件消费的 DSH 服务分「必需」与「可选」两档：必需（sessions、sessionQuery、workspaceRegistry）缺失时插件不激活并写明缺哪个；可选（模型、权限、附件、命令、投影、提问等）缺失时只关闭对应按钮，其余功能照常，手机端会看到能力位与不可用原因。
+
+- 版本节奏与降级表见 [docs/compatibility.md](docs/compatibility.md)
+- 换 DSH 版本前先跑 yarn check:compat [dsh/node_modules]：静态对齐必需服务与事件，缺项直接退出码 1
+- 运行时诊断：日志里有 `compat.probe` / `compat.blocked`，状态目录里留一份 `compat.json`

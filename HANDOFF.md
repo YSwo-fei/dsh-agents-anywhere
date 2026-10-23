@@ -63,3 +63,13 @@ ode -e "fetch(...)" 默认顺序 → ECONNRESET；equire('dns').setDefaultResul
 - 隔离实测（克隆 state 目录 + 克隆 profile，未动桌面实例）：idle → authorizing → pairing（登录成功）→ starting → \connector.control_connected\ → \connector.state_changed {"running":true}\，uv 自动检测到 PATH 上的 uv，venv 装 55 包后 connector 以 python 运行。测试残留已清理。
 - GitHub: https://github.com/YSwo-fei/dsh-agents-anywhere
 - 桌面实例仍是 2.1.5 进程（bundle 只在启动时加载），重启后生效。
+
+## 2026-10-23 17:50 —— 2.2.0：多版本适配
+
+- 新增 `src/host/compat.ts`：探测宿主已注册的服务（必需/可选）、写 `<stateRoot>/compat.json`、缺必需服务时 `compat.blocked` 明确点名；`watchServiceReadiness` 覆盖 Cordis「依赖缺失导致插件静默不加载」这种无报错情形。
+- `foldSessionTitle` 调用包了容错，标题折叠契约变化时只丢标题，不影响会话读取。
+- peerDependencies 放宽：cordis `>=4.0.0 <6`、dsh-typert-protocol / dsh-session / dsh-session-title `>=0.2.0-rc.1 <0.4.0-0`、schemastery `>=3.18.0 <4`、react `>=18.3.1 <20`。
+- `scripts/check-compat.ts` + `yarn check:compat`：只读 .d.ts，静态对齐服务与事件；已对 Desktop 0.2.1-rc.2 跑通全绿。
+- 实测（隔离 profile + 复制 state）：2.2.0 启动后 `connector.state_changed {"running":true}`；`compat.json` 正确报出 headless 环境下 `sessionController`/`questions` 缺失。
+- 操作事实：`dsh.cmd` 的 CLI 进程实际是 `DeepSeek Harness.exe`（`ELECTRON_RUN_AS_NODE=1`），按 `node.exe` 过滤杀不掉；清理测试实例要按命令行含 profile 名匹配。
+- 已知现象：无网页端接管时，onboarding 等设备上线最多 120s，超时后连接器会退出并报错（属预期）。

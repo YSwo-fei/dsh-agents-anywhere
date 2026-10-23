@@ -1,6 +1,7 @@
 import type { BridgeStatus } from '../../contracts/bridge-status.js'
 import { startupFailure, startupFailureDiagnostic } from './startup-status.js'
 import { foldSessionTitle } from '@deepseek-ai/dsh-session-title'
+import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { Context, Service } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-session-query'
@@ -15,6 +16,11 @@ import { RuntimeDiagnostics } from './diagnostics.js'
 
 declare module '@deepseek-ai/cordis' {
   interface Context { agentsAnywhereRuntime: DshRuntimeService }
+}
+
+/** A DSH upgrade could change the exported folder's contract; a lost title must not fail the read. */
+function foldTitle(events: readonly SessionEvent[]) {
+  try { return foldSessionTitle(events) } catch { return undefined }
 }
 
 /** Independent of OAuth, the modal, and Desktop installation detection. */
@@ -52,7 +58,7 @@ export class DshRuntimeService extends Service {
             signal?.throwIfAborted()
             try {
               const log = await this.native.source.readLog(id)
-              const title = foldSessionTitle(log.events)
+              const title = foldTitle(log.events)
               results.push({ sessionId: id, status: 'fulfilled', value: { session: log.session, ...(title ? { title } : {}) } })
             } catch (reason) { results.push({ sessionId: id, status: 'rejected', reason }) }
           }
