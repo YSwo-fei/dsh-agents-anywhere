@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-agents-anywhere",
-  "version": "2.2.0",
+  "version": "2.3.1",
   "description": "Agents Anywhere remote control for DeepSeek Harness: onboarding, Connector management and event-driven session runtime, with self-detecting uv and no install scripts",
   "type": "module",
   "main": "./lib/index.js",

@@ -13,6 +13,12 @@ export interface Config {
   uvPath?: string
   /** Ask Node for IPv4 addresses first; turn off on networks where IPv6 is the working path. */
   preferIpv4?: boolean
+  /**
+   * Who owns this machine's device: this plugin, or the Agents Anywhere desktop app.
+   * 'plugin' keeps an independent device so DSH stays remote-controllable even when
+   * the desktop app is installed and running; 'desktop' defers to the app.
+   */
+  deviceOwnership?: string
 }
 
 export const Config: z<Config> = z.object({
@@ -22,6 +28,7 @@ export const Config: z<Config> = z.object({
   connectorSourceDir: z.string(),
   uvPath: z.string(),
   preferIpv4: z.boolean().default(true),
+  deviceOwnership: z.string().default('plugin'),
 })
 
 export interface ResolvedConfig extends ConnectionSettings {
@@ -30,6 +37,7 @@ export interface ResolvedConfig extends ConnectionSettings {
   legacyStateRoot?: string
   connectorSourceDir: string
   uvPath: string
+  deviceOwnership: 'plugin' | 'desktop'
 }
 
 export function stateRoot(config: Config): string {
@@ -50,6 +58,11 @@ export function legacyBridgeDirectory(config: Config): string | undefined {
   return isAbsolute(home) ? join(home, 'agents-anywhere', 'bridge') : undefined
 }
 
+function resolveOwnership(value: string | undefined): 'plugin' | 'desktop' {
+  if (value === undefined || value === 'plugin' || value === 'desktop') return value ?? 'plugin'
+  throw new Error("deviceOwnership 必须是 'plugin' 或 'desktop'。")
+}
+
 export function resolveConfig(config: Config): ResolvedConfig {
   if (config.dshHome !== undefined && !isAbsolute(config.dshHome)) throw new Error('DSH_HOME 必须是绝对路径。')
   const root = stateRoot(config)
@@ -62,5 +75,6 @@ export function resolveConfig(config: Config): ResolvedConfig {
     connectorSourceDir,
     apiBaseUrl: normalizeServerOrigin(config.apiBaseUrl ?? CLOUD_API_BASE_URL),
     uvPath: config.uvPath ?? process.env['UV_PATH'] ?? 'uv',
+    deviceOwnership: resolveOwnership(config.deviceOwnership),
   }
 }

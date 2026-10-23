@@ -78,7 +78,7 @@ export async function checkClient(source: string, packageId: string): Promise<vo
     assert.ok(foreignStyle.isConnected)
 
     let snapshot: OnboardingSnapshot = {
-      desktop: { status: 'absent', message: '未找到 Desktop 安装记录。' },
+      desktop: { status: 'absent', message: '未找到 Desktop 安装记录。' }, ownershipMode: 'plugin',
       settings: { apiBaseUrl: 'http://127.0.0.1:8000' },
       webAppUrl: 'http://127.0.0.1:5174/#/',
       stage: 'idle', message: '登录后连接这台电脑。', account: null,
@@ -531,9 +531,10 @@ export async function checkClient(source: string, packageId: string): Promise<vo
 
     const signedInSnapshot = snapshot
     const installed: DesktopDetection = { status: 'installed', executablePath: '/example/Electron', launchArgs: [], packaged: false, message: 'installed' }
+    const desktopManaged = { ...signedInSnapshot, ownershipMode: 'desktop' as const }
     const actionsBeforeDesktop = calls.filter(call => /\/(begin|logout|cancel)$/.test(call.endpoint)).length
     for (const account of [signedInSnapshot.account, null]) {
-      snapshot = { ...signedInSnapshot, account, desktop: installed }
+      snapshot = { ...desktopManaged, account, desktop: installed }
       const readsBefore = calls.filter(call => call.endpoint.endsWith('/inspect')).length
       await reopen()
       assert.ok(calls.filter(call => call.endpoint.endsWith('/inspect')).length > readsBefore, 'Every opening must perform a fresh detection')
@@ -557,7 +558,7 @@ export async function checkClient(source: string, packageId: string): Promise<vo
     assert.match(dialog()!.textContent!, /BensonWang/)
     let releaseInspection!: () => void
     inspectGate = new Promise(resolve => { releaseInspection = resolve })
-    snapshot = { ...signedInSnapshot, desktop: installed }
+    snapshot = { ...desktopManaged, desktop: installed }
     await reopen()
     assert.match(dialog()!.textContent!, /正在检查连接方式/)
     assert.doesNotMatch(dialog()!.textContent!, /BensonWang|登录 Agents Anywhere Cloud|已安装桌面端/)
@@ -571,13 +572,19 @@ export async function checkClient(source: string, packageId: string): Promise<vo
     await reopen()
     assert.match(dialog()!.textContent!, /正在检查连接方式/)
     inspectGate = null
-    snapshot = { ...signedInSnapshot, desktop: installed }
+    snapshot = { ...desktopManaged, desktop: installed }
     await reopen()
     await act(async () => { releaseInspection() })
     assert.match(dialog()!.textContent!, /Agents Anywhere 桌面端正在运行/)
     assert.doesNotMatch(dialog()!.textContent!, /BensonWang/)
 
-    snapshot = { ...signedInSnapshot, desktop: { status: 'error', message: '安装记录无法读取。' } }
+    snapshot = { ...signedInSnapshot, desktop: installed }
+    await reopen()
+    assert.equal(dialog()!.getAttribute('aria-label'), 'Agents Anywhere', 'The plugin keeps its own panel when it owns the device')
+    assert.match(dialog()!.textContent!, /BensonWang/)
+    assert.doesNotMatch(dialog()!.textContent!, /请在桌面端完成连接设置/)
+
+    snapshot = { ...desktopManaged, desktop: { status: 'error', message: '安装记录无法读取。' } }
     await reopen()
     assert.match(dialog()!.textContent!, /安装记录无法读取/)
     assert.doesNotMatch(dialog()!.textContent!, /BensonWang|打开 Web|退出登录/)

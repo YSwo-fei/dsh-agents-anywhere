@@ -47,6 +47,8 @@ export interface OnboardingSnapshot {
   bridge?: BridgeStatus
   ownership?: { status: 'owned' | 'conflict' | 'error'; message?: string | undefined } | null
   desktop: DesktopDetection
+  /** 'plugin' means this plugin owns the machine's device, whatever Desktop is doing. */
+  ownershipMode: 'plugin' | 'desktop'
   settings: ConnectionSettings
   stage: FlowStage
   message: string

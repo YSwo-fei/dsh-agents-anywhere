@@ -31,14 +31,16 @@ export function OnboardingSection({ t, host, state: panel }: { t: Translate; hos
   }
 
   const detected = snapshot?.desktop.status
-  const unavailable = busy || detected !== 'absent'
+  // The host owns the device unless the profile explicitly defers to Desktop.
+  const desktopManaged = Boolean(snapshot) && snapshot?.ownershipMode === 'desktop' && detected !== 'absent'
+  const unavailable = busy || desktopManaged
   const primaryBusy = busy && loginTarget !== 'server'
   const serverBusy = busy && loginTarget === 'server'
   const connecting = snapshot?.stage === 'authorizing' || snapshot?.stage === 'starting' || snapshot?.stage === 'pairing'
   const failed = Boolean(error || snapshot?.stage === 'error' || detected === 'error')
   const state: StateDotState = failed ? 'error' : !snapshot || busy || connecting ? 'ongoing' : snapshot.stage === 'ready' ? 'done' : 'warning'
   const statusMessage = error
-    ?? (detected === 'installed' ? t('Agents Anywhere 桌面端正在运行，请在桌面端继续连接。')
+    ?? (desktopManaged && detected === 'installed' ? t('Agents Anywhere 桌面端正在运行，请在桌面端继续连接。')
       : detected === 'error' ? snapshot?.desktop.message
         : snapshot?.account && snapshot.stage === 'ready' ? t('已登录为 {name}', { name: snapshot.account.displayName })
           : snapshot?.stage === 'authorizing' ? t('已打开登录页面，完成登录后将自动返回。')

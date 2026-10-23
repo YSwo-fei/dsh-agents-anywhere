@@ -18,3 +18,8 @@ export async function readMachineState(home = userInfo().homedir): Promise<Recor
 export async function readLocalConnectorIds(home = userInfo().homedir): Promise<string[]> {
   return readMachineStateFile(machineStatePath(home)).connectorIds
 }
+
+/** The device the Desktop app's own Connector is running right now, if any. */
+export async function readActiveConnectorId(home = userInfo().homedir): Promise<string | undefined> {
+  return readMachineStateFile(machineStatePath(home)).runtime?.connectorId
+}

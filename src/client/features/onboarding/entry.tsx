@@ -35,7 +35,8 @@ export function ConnectionEntry({ wide, host, t, renderTrigger }: ConnectionEntr
   const tabId = useId()
   const state = useOnboardingState(host, open)
   const snapshot = state.snapshot
-  const standalone = snapshot?.desktop.status === 'absent'
+  // Desktop only manages this machine when the profile asks it to.
+  const standalone = Boolean(snapshot) && (snapshot?.ownershipMode === 'plugin' || snapshot?.desktop.status === 'absent')
   const ownershipError = standalone && snapshot?.ownership && snapshot.ownership.status !== 'owned' ? snapshot.ownership.message || t('暂时无法检查本机 Connector 状态，请稍后重试。') : null
   const showLogin = standalone && !snapshot.account && tab === 'connection'
   const detectionError = snapshot?.desktop.status === 'error' ? snapshot.desktop.message : !snapshot ? state.readError : null

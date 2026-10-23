@@ -51,7 +51,7 @@ function ConnectionSettings({ host, t, onConnection }: { t: Translate; host: Onb
     {state.readError || snapshot?.desktop.status === 'error'
       ? <Button variant="outline" disabled={state.busy} onClick={() => { void state.run(state.refresh) }}>{t('重新检查')}</Button> : null}
   </>
-  if (snapshot.desktop.status === 'installed') return <>
+  if (snapshot.ownershipMode === 'desktop' && snapshot.desktop.status === 'installed') return <>
     <p>{t('Agents Anywhere 桌面端正在运行。请在桌面端管理连接设置。')}</p>
     <Button variant="outline" disabled={state.busy} onClick={() => { void state.run(() => host.openDesktop()) }}>{t('打开 Agents Anywhere')}</Button>
     {state.error ? <p role="alert">{translateMessage(t, state.error)}</p> : null}

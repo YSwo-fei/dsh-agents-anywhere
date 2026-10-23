@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { AccountApi, ApiError, type Account } from './api.js'
 import { systemDeviceName } from './device-name.js'
 import { readJson, writeJson } from '../storage/files.js'
-import { localMachineRegistry, type LocalMachineRegistry } from '../desktop/machine-state.js'
+import { localMachineRegistry, readActiveConnectorId, type LocalMachineRegistry } from '../desktop/machine-state.js'
 
 export interface Binding {
   installationId: string
@@ -51,11 +51,19 @@ export async function verifyBoundDevice(binding: BoundDevice, account: Account, 
 export async function ensureBinding(root: string, account: Account, api: AccountApi, signal: AbortSignal, options: {
   machineState?: LocalMachineRegistry
   renew?: boolean
+  /** Keep this plugin's own device instead of adopting the Desktop app's. */
+  independent?: boolean
 } = {}): Promise<BoundDevice> {
   const path = bindingPath(root, account)
   let binding = await readJson<Binding>(path)
   const machine = options.machineState ?? localMachineRegistry()
-  const localIds = await machine.readConnectorIds()
+  // The shared record also lists the Desktop app's device. A plugin that owns the
+  // machine registers and keeps its own device, so both can run without fighting
+  // over one Connector identity.
+  if (options.independent && binding?.connectorId && binding.connectorId === await readActiveConnectorId()) {
+    binding = { installationId: randomUUID(), name: await systemDeviceName() }
+  }
+  const localIds = options.independent ? [] : await machine.readConnectorIds()
   // Older plugin installations already have a private binding. Keep it as the
   // last local candidate; Desktop's ordered shared IDs always take precedence.
   const candidates = [...new Set([...localIds, ...(binding?.connectorId ? [binding.connectorId] : [])])]

@@ -155,9 +155,9 @@ export class OnboardingManager {
       if (this.account?.apiBaseUrl !== this.settings.apiBaseUrl) this.account = null
       if (this.account) this.binding = await readBoundDevice(this.config.stateRoot, this.account)
       this.roleTimer = setInterval(() => {
-        const wasBlocked = this.desktop.status !== 'absent'
+        const wasBlocked = this.desktopBlocks
         void this.refreshRole().then(() => {
-          if (wasBlocked && !this.disposed && this.desktop.status === 'absent' && this.account) {
+          if (wasBlocked && !this.disposed && !this.desktopBlocks && this.account) {
             void this.begin().catch(error => this.setProgress('error', safeMessage(error)))
           }
         }).catch(error => this.setProgress('error', safeMessage(error)))
@@ -172,7 +172,7 @@ export class OnboardingManager {
 
   async resume(): Promise<void> {
     await this.initialize()
-    if (this.account && this.desktop.status === 'absent') {
+    if (this.account && !this.desktopBlocks) {
       // This starts only a previously authorized device. Fresh installs are idle.
       try { await this.begin() } catch (error) { this.setProgress('error', safeMessage(error)) }
     }
@@ -185,7 +185,7 @@ export class OnboardingManager {
   async inspect(): Promise<OnboardingSnapshot> {
     await this.initialize()
     await this.refreshRole()
-    if (this.desktop.status === 'absent') this.refreshProfile()
+    if (!this.desktopBlocks) this.refreshProfile()
     else this.mobile.clear()
     return this.snapshot()
   }
@@ -279,7 +279,7 @@ export class OnboardingManager {
         this.launch(flow, controller)
         return { url: flow.progressUrl }
       } catch (error) {
-        if (this.desktop.status !== 'absent') throw new Error(this.desktop.message)
+        if (this.desktopBlocks) throw new Error(this.desktop.message)
         if (!(error instanceof ApiError) || error.status !== 401) {
           this.setProgress('error', safeMessage(error)); throw error
         }
@@ -316,6 +316,7 @@ export class OnboardingManager {
     this.binding = await ensureBinding(this.config.stateRoot, account, api, signal, {
       ...(this.dependencies.machineState ? { machineState: this.dependencies.machineState } : {}),
       renew: Boolean(code),
+      independent: this.ownership === 'plugin',
     })
     this.recovery = null
     await this.requireStandalone()
@@ -436,13 +437,23 @@ export class OnboardingManager {
 
   cancel(): Promise<void> { return this.serial(() => this.cancelFlow()) }
 
+  /** The Host receives the raw plugin config, so an omitted field still means plugin ownership. */
+  private get ownership(): 'plugin' | 'desktop' {
+    return this.config.deviceOwnership === 'desktop' ? 'desktop' : 'plugin'
+  }
+
+  /** A Desktop app blocks this plugin only when the profile is configured to defer to it. */
+  private get desktopBlocks(): boolean {
+    return this.ownership === 'desktop' && this.desktop.status !== 'absent'
+  }
+
   private async requireStandalone(): Promise<void> {
     await this.initialize()
     if (this.disposed) throw new Error('插件已关闭。')
     if (this.roleCheck) await this.roleCheck
     await this.refreshRole()
     if (this.disposed) throw new Error('插件已关闭。')
-    if (this.desktop.status !== 'absent') { this.mobile.clear(); throw new Error(this.desktop.message) }
+    if (this.desktopBlocks) { this.mobile.clear(); throw new Error(this.desktop.message) }
   }
 
   private requireAccount(): Account {
@@ -452,7 +463,7 @@ export class OnboardingManager {
   }
 
   controlConnector(action: ConnectorAction): Promise<null> {
-    if (action === 'stop' && !this.disposed && this.desktop.status === 'absent') {
+    if (action === 'stop' && !this.disposed && !this.desktopBlocks) {
       this.controller?.abort()
     }
     return this.serial(async () => {
@@ -486,6 +497,7 @@ export class OnboardingManager {
       this.binding = this.binding ? await verifyBoundDevice(this.binding, account, api, controller.signal)
         : await ensureBinding(this.config.stateRoot, account, api, controller.signal, {
           ...(this.dependencies.machineState ? { machineState: this.dependencies.machineState } : {}),
+          independent: this.ownership === 'plugin',
         })
       await this.requireStandalone()
       controller.signal.throwIfAborted()
@@ -501,7 +513,7 @@ export class OnboardingManager {
         throw error
       }
       await this.connector.stop()
-      if (this.desktop.status !== 'absent') throw new Error(this.desktop.message)
+      if (this.desktopBlocks) throw new Error(this.desktop.message)
     } finally { if (this.controller === controller) this.controller = null }
   }
 
@@ -697,7 +709,8 @@ export class OnboardingManager {
 
   private snapshot(): OnboardingSnapshot {
     return {
-      desktop: this.desktop, settings: { ...this.settings }, stage: this.stage, message: this.message,
+      desktop: this.desktop, ownershipMode: this.ownership,
+      settings: { ...this.settings }, stage: this.stage, message: this.message,
       account: this.account ? publicProfile(this.account) : null,
       webAppUrl: resolveWebAppUrl(this.settings.apiBaseUrl),
       connectorId: this.binding?.connectorId ?? null, connectorRunning: this.connector.running, flowId: this.flow?.id ?? null,
