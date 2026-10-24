@@ -667,7 +667,7 @@ export class OnboardingManager {
       const desktop = await this.detect()
       if (this.disposed) return
       this.desktop = desktop
-      if (desktop.status === 'absent') return
+      if (this.ownership === 'plugin' || desktop.status === 'absent') return
       // Installation changes are observed even when the plugin panel is closed.
       // Abort first; never await the flow from inside that same flow's guard.
       this.controller?.abort()

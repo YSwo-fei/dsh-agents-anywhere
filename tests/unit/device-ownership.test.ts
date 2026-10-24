@@ -15,17 +15,23 @@ const running: DesktopDetection = {
 
 function managerAt(home: string, desktop: DesktopDetection, ownership?: 'plugin' | 'desktop') {
   const opened: string[] = []
+  const stops: string[] = []
+  const connectorState = { running: true }
   const config: Config = {
     stateRoot: join(home, 'plugin'), apiBaseUrl: 'https://api.example.test', connectorSourceDir: home, uvPath: 'uv',
     ...(ownership ? { deviceOwnership: ownership } : {}),
   }
   return {
     opened,
+    stops,
     manager: new OnboardingManager(config, {
       detect: async () => desktop,
       launchDesktop: async () => {},
       connector: {
-        onState: () => () => {}, prepare: async () => {}, start: async () => {}, stop: async () => {}, assertHealthy: async () => {},
+        get running() { return connectorState.running },
+        onState: () => () => {}, prepare: async () => {}, start: async () => {},
+        stop: async () => { if (connectorState.running) { stops.push('stop'); connectorState.running = false } },
+        assertHealthy: async () => {},
       },
       checkServer: async () => {},
       machineState: localMachineRegistry(home),
@@ -44,21 +50,23 @@ test('device ownership defaults to the plugin and rejects unknown values', () =>
 test('plugin ownership keeps serving when the Desktop app is running', async (t) => {
   const home = await mkdtemp(join(tmpdir(), 'aa-ownership-plugin-'))
   t.after(() => rm(home, { recursive: true, force: true }))
-  const { manager, opened } = managerAt(home, running)
+  const { manager, opened, stops } = managerAt(home, running)
   assert.equal((await manager.inspect()).ownershipMode, 'plugin')
   assert.equal((await manager.inspect()).desktop.status, 'installed')
   await manager.openConnectorFolder('data')
   assert.equal(opened.length, 1, 'the plugin must not hand the device back to the Desktop app')
+  assert.deepEqual(stops, [], 'a running Desktop app must not stop the plugin connector')
   await manager.dispose()
 })
 
 test('desktop ownership still hands the device back to a running Desktop app', async (t) => {
   const home = await mkdtemp(join(tmpdir(), 'aa-ownership-desktop-'))
   t.after(() => rm(home, { recursive: true, force: true }))
-  const { manager, opened } = managerAt(home, running, 'desktop')
+  const { manager, opened, stops } = managerAt(home, running, 'desktop')
   assert.equal((await manager.inspect()).ownershipMode, 'desktop')
   await assert.rejects(() => manager.openConnectorFolder('data'), /桌面端正在运行/)
   assert.equal(opened.length, 0)
+  assert.deepEqual(stops, ['stop'], 'desktop ownership stops the connector in favour of the app')
   await manager.dispose()
 })
 
