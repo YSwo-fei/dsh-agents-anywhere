@@ -261,6 +261,9 @@ export class SourceConnector implements ConnectorProcess {
         ...(typeof process.env['NO_PROXY'] === 'string' ? { NO_PROXY: process.env['NO_PROXY'].replaceAll('[::1]', '::1') } : {}),
         ...(typeof process.env['no_proxy'] === 'string' ? { no_proxy: process.env['no_proxy'].replaceAll('[::1]', '::1') } : {}),
         AA_CONNECTOR_OWNER_KIND: 'dsh-plugin',
+        // 插件拥有自己的设备身份，因此把 Connector 的「每用户互斥」记录搬进插件状态目录：
+        // 官方桌面端仍在运行时，两边各自持有一份租约，互不抢占。
+        AA_CONNECTOR_RUNTIME_PATH: join(this.config.stateRoot, 'connector-runtime.json'),
         ...(this.config.dshHome ? { DSH_HOME: this.config.dshHome } : {}),
         AGENT_CONNECTOR_DATA_DIR: dataDir,
         UV_PROJECT_ENVIRONMENT: join(this.config.stateRoot, 'connector-venv'),

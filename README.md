@@ -14,6 +14,8 @@
 | **manager 锁被占用后可自愈** | 上游把首次 `load()` 的 Promise 缓存住，一旦本机状态目录被另一个 DSH 实例短暂占用（锁冲突），这个失败的 Promise 会被永久缓存，之后所有请求都只报错，必须重启 DSH 才能恢复；本版在失败后清空缓存，下一次请求重新尝试 |
 | **错误日志带原因** | 上游 `onboarding.stage` 只记录 `error`，不知道错在哪；本版同时记录 message，面板报错和 `logs/onboarding.jsonl` 能直接对照 |
 | **版本号/包名不再硬编码** | 上游多处写死 `@agents-anywhere/dsh-bridge-next/package.json`，改名后会读不到自身版本 |
+| **插件自己拥有设备身份**（`deviceOwnership`，默认 `plugin`） | 上游一检测到官方 Agents Anywhere 桌面端在运行就主动退让（「请由桌面端管理本机设备」），并复用桌面端留下的 `connectorId`，于是装了桌面端就永远连不上；本版不复用桌面端身份，也不因桌面端运行而停摆，要退回上游行为可设 `deviceOwnership: 'desktop'` |
+| **Connector 租约与桌面端隔离** | 上游 Connector 的「每用户互斥」记录写死在 `~/.agents-anywhere/connector-runtime.json`，桌面端会立刻抢回这份租约，插件因此报「当前已有其他 Connector 在运行」；本版让 Connector 把这份记录放进插件自己的状态目录（`AA_CONNECTOR_RUNTIME_PATH`），两边各持一份租约、各注册一台设备 |
 
 ## 功能
 
@@ -35,7 +37,7 @@ corepack yarn build
 
 # 2) 打成 tarball 装进 DSH profile
 npm pack --ignore-scripts
-dsh plugin --profile desktop add file:$(pwd)/dsh-plugin-agents-anywhere-2.1.5.tgz
+dsh plugin --profile desktop add file:$(pwd)/dsh-plugin-agents-anywhere-2.3.3.tgz
 ```
 
 Windows PowerShell 等价写法：
@@ -44,7 +46,7 @@ Windows PowerShell 等价写法：
 cd "路径\dsh-agents-anywhere"
 corepack yarn install; corepack yarn build
 npm pack --ignore-scripts
-dsh plugin --profile desktop add "file:$PWD\dsh-plugin-agents-anywhere-2.1.5.tgz"
+dsh plugin --profile desktop add "file:$PWD\dsh-plugin-agents-anywhere-2.3.3.tgz"
 ```
 
 装完确认 `dsh.profile.bundles` 里有 `dsh-plugin-agents-anywhere`，然后**重启 DSH**（插件 bundle 只在启动时加载）。
@@ -75,6 +77,15 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 4. 之后在手机端选择这台设备，就能接管当前 DSH 会话
 
 状态文件位于 `~/.agents-anywhere/dsh-bridge-next/`：`connector-settings.json`（设置）、`logs/onboarding.jsonl`（阶段日志）、`connector-venv/`（Python 环境，首次连接时生成）。
+
+## 和官方桌面端共存
+
+同一台机器上同时装了 Agents Anywhere 官方桌面端（`Agents Anywhere.exe`）时，两边会各自是**一台独立设备**：桌面端管它自己的 Connector，插件管 DSH 的 Connector，互不抢占。
+
+- 默认 `deviceOwnership: 'plugin'`：插件不因桌面端运行而退让，也不复用桌面端留下的 `connectorId`
+- 设成 `deviceOwnership: 'desktop'`（profile 的 `cordis.patch.yml` 里本插件条目的 `config`）就回到上游行为：桌面端在跑时插件只显示提示、不连接
+- Connector 的互斥记录被插件搬到自己的状态目录（`AA_CONNECTOR_RUNTIME_PATH`），所以桌面端运行时插件不会报「已有其他 Connector 在运行」
+- 手机端设备列表里会看到两台：桌面端那台显示为桌面工作台，插件这台就是当前 DSH 实例
 
 ## 开发
 

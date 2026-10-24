@@ -38,8 +38,16 @@ def system_home() -> Path:
     return Path.home()
 
 
+RUNTIME_PATH_ENV = "AA_CONNECTOR_RUNTIME_PATH"
+
+
 def runtime_path(config_path: str | Path | None = None) -> Path:
-    # Credentials may be relocated; the per-user mutex may not.
+    # Credentials may be relocated; the per-user mutex may not. A host that owns
+    # its own device identity (for example the DSH plugin, which runs alongside
+    # the Agents Anywhere desktop app) may relocate the mutex explicitly.
+    override = os.environ.get(RUNTIME_PATH_ENV)
+    if override:
+        return Path(override)
     return system_home() / ".agents-anywhere" / "connector-runtime.json"
 
 
