@@ -73,3 +73,26 @@ ode -e "fetch(...)" 默认顺序 → ECONNRESET；equire('dns').setDefaultResul
 - 实测（隔离 profile + 复制 state）：2.2.0 启动后 `connector.state_changed {"running":true}`；`compat.json` 正确报出 headless 环境下 `sessionController`/`questions` 缺失。
 - 操作事实：`dsh.cmd` 的 CLI 进程实际是 `DeepSeek Harness.exe`（`ELECTRON_RUN_AS_NODE=1`），按 `node.exe` 过滤杀不掉；清理测试实例要按命令行含 profile 名匹配。
 - 已知现象：无网页端接管时，onboarding 等设备上线最多 120s，超时后连接器会退出并报错（属预期）。
+
+## 追加：2.3.3 —— 与官方桌面端共存（2026-10-24）
+
+现场事实：官方桌面端 D:\agentwhere\Agents Anywhere\Agents Anywhere.exe 常驻（pid 11776 的
+connector 持有 ~/.agents-anywhere/connector-runtime.json，kind=desktop-workbench）。插件启动
+自己的 Connector 时被同一份「每用户互斥」记录挡住，报 connector_already_running
+（面板文案：当前已有其他 Connector 在运行…），且桌面端会立刻抢回租约。
+
+修法（2.3.2 → 2.3.3）：
+- connector/connector/core/runtime_owner.py：untime_path() 支持 \AA_CONNECTOR_RUNTIME_PATH\
+- \src/host/connector/process.ts\：spawn 时下发 \AA_CONNECTOR_RUNTIME_PATH=\/connector-runtime.json\
+- 配合 2.3.0 的 \deviceOwnership: 'plugin'\（不复用桌面端 connectorId、不因桌面端运行退让）
+
+验证（bogus token 探针，不动真实账号）：
+\\\
+python run_connector.py   # PYTHONPATH=lib/bundled-connector, AA_CONNECTOR_RUNTIME_PATH=临时文件
+→ 日志停在 invalid connector credential（不是 connector_already_running）
+→ 临时租约文件生成了 connectorIds=[conn_isolated_probe]
+→ 共享租约仍指向桌面端 pid 11776
+\\\
+
+已装进 desktop profile（2.3.3），bundles 含插件。下一步：重启 DSH 验证真实连接。
+待办：给 \untime_path()\ 的环境变量覆盖补一个 Python 单测（现有 Python 测试需一次性环境，未跑）。
